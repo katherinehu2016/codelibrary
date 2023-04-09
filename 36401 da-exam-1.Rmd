@@ -1,0 +1,119 @@
+---
+title: "36-401 DA Exam 1"
+author: "Katherine Hu (khu2)"
+date: "October 14, 2022"
+output: pdf_document
+linestretch: 1.241
+fontsize: 12pt
+fontfamily: mathpazo
+---
+
+
+```{r setup, include = FALSE}
+# By default, do not include R source code in the PDF. We do not want to see
+# code, only your text and figures.
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+# Introduction
+
+One of the most irritating parts of the airline travel experience is delays in arrival. Delays can have significant impact on travelers' schedules and plans, leading them to have a much poorer impression of the travel experience. The Bureau of Transportation Statistics seeks to understand what contributes to delays in arrival time. More specifically, **(1)** we wish to examine the relationship between delay in departure time and delay in arrival time, as well as the impact of the weather on this relationship.
+
+# Exploratory Data Analysis/Initial Modeling
+
+```{r results='hide'}
+data = read.csv("airlinedat.csv", header = TRUE)
+```
+
+The Bureau of Transportation Statistics has records of every flight from the past 20 years. We will be using a sample of 4,887 flights from 2008 to answer our questions. There are 17 variables in this dataset, but we will only be examining three. The first is the flight arrival delay in minutes (negative if the flight arrival was early), and the second is the flight departure delay in minutes (negative if the flight departure was early). The last variable we will be looking at is a categorical variable measuring the impact of the weather on the delay, which is 1 if the delay was due to weather and 0 otherwise. All other variables are unimportant for answering our question.
+
+We begin by examining each of the two quantitative variables individually, and then examining their relationship. **(2) (3)**Figure 1 below shows histograms of the distribution of flight arrival delay and flight departure delay. Both of these distributions are very right skewed.
+
+```{r fig.width=6, fig.height=2.5, fig.cap="Histograms of the distributions of flight arrival delay and flight departure delay"}
+par(mfrow=c(1,2))
+hist(data$ArrDelay, xlab = "Flight arrival delay (minutes)", main = "")
+hist(data$DepDelay, xlab = "Flight departure delay (minutes)", main = "")
+```
+
+This skewness will have an impact on our ability to analyze the relationship between the data. **(4)** If we look at Figure 2 below, we can see a scatterplot of flight arrival delay and flight departure delay. The relationship looks like it may be positive and linear, but it is difficult to tell because a few outliers with very lengthy delays in departure and arrival time are making the graph appear squished. We can deal with this by transforming the variables, such as with a log transformation, to make them less skewed. However, it is important to note that, as seen in Figure 1, a large number of the values are less than or equal to 0 for both variables, which will produce an error when we attempt to log transform. This is also not ideal for our analysis, because negative or zero values mean there was no delay, which is what we are trying to examine.
+
+```{r fig.width=6, fig.height=3, fig.cap="Scatterplot of flight departure delay and flight arrival delay with regression line"}
+plot(ArrDelay~DepDelay, data = data, xlab = "Flight departure delay (minutes)",
+     ylab = "Flight arrival delay (minutes)", pch = "+")
+abline(lm(ArrDelay~DepDelay, data = data))
+```
+
+Thus, while we will attempt to perform log transformation on the variables, we will also remove non-positive values for flight arrival delay and replace them with missing values, since non-positive values signify that there was no arrival delay, and are thus irrelevant to the question we are examining. We will not remove non-positive values for flight departure delay, however, since we are investigating whether or not departure delay had an impact on arrival delay, and thus flights without departure delay are still relevant. Instead, we will add a constant to all values of flight departure delay to make all of the values greater than 0, and thus able to be properly log transformed. Since the lowest value of flight departure delay is $-29$, we will add $30$ to all of the values.
+
+After adjusting for non-positive values and applying a log transformation to both variables, we can see from Figure 3 that the distributions of both variables are now less skewed.
+
+```{r fig.width=7, fig.height=2.5, fig.cap="Histograms of the distributions of flight arrival delay and flight departure delay, after log transformation"}
+data$ArrDelay.pos = ifelse(data$ArrDelay > 0, data$ArrDelay, NA)
+data$DepDelay.trans = data$DepDelay + 30
+par(mfrow=c(1,2))
+hist(log(data$ArrDelay.pos), xlab = "log(Flight arrival delay (minutes))", main = "")
+hist(log(data$DepDelay.trans), xlab = "log(Flight departure delay (minutes))", main = "")
+```
+
+Now we can try to examine the relationship again. Figure 4 shows our new scatterplot, after the log transformations have been applied. The relationship looks to be reasonably linear and positive, so we can use the linear regression model to explore the relationship between the variables further.
+
+```{r fig.width=6, fig.height=3, fig.cap="Scatterplot of flight departure delay and flight arrival delay with regression line, after log transformation"}
+plot(log(ArrDelay.pos)~log(DepDelay.trans), data = data,
+     xlab = "log(Flight departure delay (minutes))",
+     ylab = "log(Flight arrival delay (minutes))", pch = "+")
+abline(lm(log(ArrDelay.pos)~log(DepDelay.trans), data = data))
+```
+
+
+```{r results='hide'}
+linReg = lm(log(ArrDelay.pos)~log(DepDelay.trans), data = data)
+summary(linReg)
+```
+
+**(5)** Using our transformed variables, we construct the linear regression model below, where $ArrDelay$ represents flight arrival delay and $DepDelay$ represents flight departure delay:
+
+$log(ArrDelay) = \beta_1log(DepDelay) + \beta_0$
+
+# Diagnostics
+
+The model we have chosen is a simple linear regression model. **(6)** The assumptions of the simple linear regression model are that the errors are independent and normally distributed with a mean of 0 and constant variance. To examine this, we can look at a plot of the residuals. **(7)** If our assumptions hold, the residuals should look to be 0 on average and should be spread randomly with constant variance. Figure 5 below shows plots of both the residuals and the squared residuals in relation to the predictor, flight departure delay. The residuals do appear to be centered on 0 and are spread fairly randomly. There appears to be a slight decrease in variance as the predictor increases, however if we compare to Figure 4, it is also clear that there is less data for larger values of the predictor, and that some of the points with larger variance are outliers. Thus, overall, though there is some heteroskedasticity that could negatively impact confidence intervals and tests, and in general the model appears to be an okay fit.
+
+```{r fig.width=8, fig.height=3, fig.cap="Diagnostic plots of residuals and squared residuals againt the predictor"}
+delayOnly = subset(data, ArrDelay.pos != ".")
+par(mfrow=c(1,2))
+plot(log(delayOnly$DepDelay.trans), linReg$residuals, pch = "+",
+     xlab = "log(Flight departure delay (minutes))", ylab = "Residuals")
+abline(0,0, lwd = 2, col=2)
+plot(log(delayOnly$DepDelay.trans), linReg$residuals ^ 2, pch = "+",
+     xlab = "log(Flight departure delay (minutes))", ylab = "Squared Residuals")
+abline(0,0, lwd = 2, col=2)
+```
+
+**(8)** Now that we know that the model is a fairly reasonable fit, we can determine whether there is strong evidence for a relationship. In order to test this, we perform a hypothesis test on $\beta_1$, where $H_0: \beta_1 = 0$ and $H_a: \beta_1 \ne 0$. We find that the p value of this test is <2e-16, which is less than 0.05, so there is sufficient evidence to reject the null hypothesis $H_0: \beta_1 = 0$. In other words, the relationship between flight arrival delay and flight departure delay is statistically significant.
+
+# Model Inference and Results
+
+We will now use our model to make predictions for a flight departure delay of 200 minutes. **(9)** With our model, we will construct a 90% confidence interval for the average arrival delay of a flight with a departure delay of 200 minutes. It is important to take into account our variable transformations here, as 200 minutes is in the original coordinate system. The confidence interval ends up having a lower bound of 164 minutes and an upper bound of 193 minutes. Thus, on average, we are 90% confidant that the arrival delay of a flight with a departure delay of 200 minutes is between 164 and 193 minutes.
+
+```{r results='hide'}
+exp(predict(linReg, newdata = list(DepDelay.trans = 200), interval = "confidence", level = 0.90))
+```
+
+Another relationship we wish to explore is that of the impact of weather on the relationship between flight arrival delay and flight departure delay. **(10)** In order to determine the effects of weather, we create two subsets of our data, one for the flights where weather caused the delay, and one for the flights where it didn't. We then construct confidence intervals for the parameters in each model. For flights where weather caused the delay, the confidence interval for $\beta_0$ is (-1.61, -0.23) and the confidence interval for $\beta_1$ is (0.98, 1.29). For flights where weather didn't cause the delay, the confidence interval for $\beta_0$ is (-4.01, -3.59) and the confidence interval for $\beta_1$ is (1.64, 1.75). Since the confidence intervals do not overlap for both parameters, we can conclude that there is a signficant difference in the two models.
+
+```{r results='hide'}
+weather0 = subset(delayOnly, Weather == 0)
+weather1 = subset(delayOnly, Weather == 1)
+reg0 = lm(log(ArrDelay.pos)~log(DepDelay.trans), data = weather0)
+reg1 = lm(log(ArrDelay.pos)~log(DepDelay.trans), data = weather1)
+confint(reg0, level = 0.9)
+confint(reg1, level = 0.9)
+```
+
+**(11)** We found that the flight arrival delay and the flight departure delay to appear to have a linear relationship, and that this relationship is positive. Thus, a longer departure delay is correlated with a longer arrival delay. Using this relationship, we also found that the the arrival delay of a flight with a departure delay of 200 minutes is between 164 and 193 minutes. Finally, we found that the weather does have an impact on the relationship between departure delay and arrival delay
+
+# Conclusion and Discussion
+
+We found that a longer flight departure delay is correlated with a longer flight arrival delay. Thus, travelers whose flights are late to depart should expect to have to adjust their plans for a later arrival in their destination. In addition, the weather had a notable impact on the relationship between arrival and departure delays, so travelers should also look at the weather when making and adjusting their travel plans. In order to improve our analysis, we could also look at the impact of other variables, such as whether the aircraft arrived to the airport late from the previous flight, the distance the traveled during the flight, and whether there were security issues. Additionally, it might be helpful to also look at what factors lead to a flight arriving early and compare.
+

@@ -1,0 +1,178 @@
+---
+title: "36-401 DA Exam 2"
+author: "Katherine Hu (khu2)"
+date: "November 22, 2022"
+output: pdf_document
+linestretch: 1.241
+fontsize: 12pt
+fontfamily: mathpazo
+---
+
+
+```{r setup, include = FALSE}
+# By default, do not include R source code in the PDF. We do not want to see
+# code, only your text and figures.
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+# Introduction
+
+A consumer advocate watchdog group wants to know what sort of relationship household income has with demographic and housing quality measurements. Given data on the housing conditions in the borough of Manhattan, **(1)** we would like to specifically examine how average household income differs between Caucasian and Hispanic households. We would also like to see if the relationship between age and household income is affected by whether or not there was water leakage in the apartment.
+
+# Exploratory Data Analysis
+
+The New York City Housing and Vacancy Survey is done every 3 years. **(2)**We will be using a sample of 3,373 households in the borough of Manhattan to answer our questions.
+
+```{r results='hide'}
+data = read.csv("manhattan.csv", header = TRUE)
+#3373
+data = subset(data, data$Income < 9999999 & data$Income >= 0)
+#3292
+```
+
+After examining our data, we found a number of missing or truncated values. Thus, we removed 81 observations from our data, so a total of 3,292 observations will be used.
+
+We define 4 key variables. The first is our response variable, called Income, which is the total household income in US dollars. We will be looking at 3 response variables, Age, Ethnic, and WaterLeakage. Age is the respondent's age in years, Ethnic is the self-reported race given 5 options (Caucasian, African American, Hispanic, Asian, and Other), and WaterLeakage is the presence of water leakage in the apartment (Yes or No). In addition to the 4 main variables, there are 7 additional variables that must be controlled for: Gender, which is the respondent's Gender (male or female), Health, which is the respondent's self-reported health status (an integer from 1 to 6, higher is better), HeatBreaks, the number of heating breakdowns since 2002, MiceRats, whether there were mice or rats in the past 90 days (Yes or No), CracksHoles, whether there are cracks or holes in the walls (Yes or No), BrokenPlaster, whether there is broken plaster in the walls or ceiling (Yes or No), and MaintenenceDef, the number of maintenence deficiencies between 2002 and 2005.
+
+We start by examining each variable individually. In Figure 1, we see histograms of our 4 quantitative variables, Income, Age, HeatBreaks, and MaintenenceDef. The distribution of Income is unimodal and strongly right skewed. The distribution of Age is unimodal and possibly slightly right skewed, but overall appears fairly normal. The distribution of both HeatBreaks and MaintenenceDef are both unimodal and strongly right skewed.
+
+```{r fig.width=6, fig.height=6, fig.cap="Histograms of the distributions of income, age, number of heating equipment breakdowns, and number of maintenence deficiencies"}
+par(mfrow=c(2,2))
+hist(data$Income, xlab="Income", ylab="density", prob=T, main="")
+hist(data$Age, xlab="Age", ylab="density", prob=T, main="")
+hist(data$HeatBreaks, xlab="Number of Heating Equipment Breakdowns", ylab="density", prob=T, main="")
+hist(data$MaintenanceDef, xlab="Number of Maintenence Deficiencies", ylab="density", prob=T, main="")
+```
+
+In Figure 2, we see barplots of our 7 categorical variables. More respondents were male than female, and most of the respondents identified themselves as Caucasian, while the fewest identified as Other. Most respondents reported their health as having a score of 1, while the least reported a score of 6. More apartments did not have mice/rats, presence of cracks or holes in the walls, broken plaster, or water leakage than did.
+
+```{r fig.width=6, fig.height=8, fig.cap="Barplots of the distributions of gender, ethnicity, health rating, presence of mice/rats, presence of cracks or holes, presence of broken plaster, and presence of water leakage"}
+par(mfrow=c(4,2))
+barplot(table(data$Gender), main = "Gender")
+barplot(table(data$Ethnic), main = "Ethnicity")
+barplot(table(data$Health), main = "Health Rating")
+barplot(table(data$MiceRats), main = "Presence of Mice/Rats")
+barplot(table(data$CracksHoles), main = "Presence of Cracks or Holes in Walls")
+barplot(table(data$BrokenPlaster), main = "Presence of Broken Plaster")
+barplot(table(data$WaterLeakage), main = "Presence of Water Leakage")
+```
+
+**(3)** Next, we create a pairs plot of our quantitative variables, as shown in Figure 3. We can see that the relationship between the response, Income, and the other three variables appears to be reasonably linear, and that the predictors do not appear to have linear relationships with each other, so there is probably not collinearity.
+
+```{r fig.width=6, fig.height=8, fig.cap="Pairs plot of income, age, number of heating equipment breakdowns, and number of maintenance deficiencies"}
+pairs(data[,c(1,3,6,11)], pch=16, cex=0.5,col=2)
+```
+
+Now we can look at side-by-side boxplots for the relationship between our response, Income, and our categorical predictor variables, shown in Figure 4. We see that female respondents have a slightly higher median income than male, and that there are more female respondents with very high income values as the third quartile is greater and there are more high outliers. Caucasian respondents tend to have the highest income values, with a higher median and 3rd quartile and more high outliers than any other ethnicity. Hispanic and African American respondents tend to have the lowest income values, with the lower medians and 3rd quartiles than any other ethnicity. Income also appears to increase as health rating decreases, with lower ratings corresponding to higher median and 3rd quartile values as well as more high outliers. Apartments that do not have mice/rats, cracks and holes, broken plaster, and water leakage tend to be higher income households, with higher median and 3rd quartile values and more high outliers.
+
+```{r fig.width=8, fig.height=10, fig.cap="Boxplots of the distribution of income conditioned on gender, ethnicity, health rating, presence of mice/rats, presence of cracks and holes, presence of broken plaster, and presence of water leakage"}
+par(mfrow=c(4,2))
+boxplot(Income ~ Gender, ylab="Gender",
+        data=data, xlab="Income", horizontal = TRUE)
+boxplot(Income ~ Ethnic, ylab="Ethnicity",
+        data=data, xlab="Income", horizontal = TRUE)
+boxplot(Income ~ Health, ylab="Health Rating",
+        data=data, xlab="Income", horizontal = TRUE)
+boxplot(Income ~ MiceRats, ylab="Income",
+        data=data, xlab="Presence of Mice/Rats", horizontal = TRUE)
+boxplot(Income ~ CracksHoles, ylab="Income",
+        data=data, xlab="Presence of Cracks and Holes", horizontal = TRUE)
+boxplot(Income ~ BrokenPlaster, ylab="Income",
+        data=data, xlab="Presence of Broken Plaster", horizontal = TRUE)
+boxplot(Income ~ WaterLeakage, ylab="Income",
+        data=data, xlab="Presence of Water Leakage", horizontal = TRUE)
+```
+
+\pagebreak
+# Initial Modeling and Diagnostics
+
+Now we can form our initial model. **(4)** Both Ethnic and Health will be modeled as factors, since they are categorical variables with multiple possible values (the respondents had to choose 1 of several possible responses). Gender, MiceRats, CracksHoles, BrokenPlaster, and WaterLeakage are also categorical, but only have 2 possible values, and thus will not need to be modeled as factors but will be treated as categorical. HeatBreaks and MaintenanceDef are both treated as continuous values, because even though they are discrete, they correspond to the number of heating equipment breakdowns and maintenance deficiencies, making them count variables. Income and Age will also both be modeled as continuous. **(5)** We will also be adding the interaction term for Age and WaterLeakage to the model in order to answer the question of whether or not WaterLeakage changes the relationship between Income and Age.
+
+```{r results='hide'}
+model = lm(Income ~ Gender + Age + factor(Ethnic) + factor(Health) + HeatBreaks
+           + MiceRats + CracksHoles + BrokenPlaster + WaterLeakage + MaintenanceDef
+           + Age:WaterLeakage,
+           data = data)
+summary(model)
+```
+
+**(6)** After creating our initial model, we observe the residual and squared residual plot generated by the model, as shown in Figure 5. From this, we can see that there appears to be a violation of model assumptions in the residuals plot, as there is a clear pattern (an apparent negative linear trend) and some nonconstant variance (it appears to increase).
+
+```{r fig.width=8, fig.height=4, fig.cap="Diagnostic plots of residuals and squared residuals against the predictor for our initial model"}
+res <- model$residuals
+fit <- model$fitted.values
+par(mfrow = c(1,2))
+plot(res~fit, pch = ".", xlab = "Fitted Values", ylab ="Residuals", main = "Residual Plot" )
+plot(res^2~fit, pch = ".", xlab = "Fitted Values", ylab ="Residuals", main = "Squared Residual Plot" )
+```
+
+**(7)** We recall from the univariate EDA that Income was a heavily left skewed variable, and thus is a good candidate for log transformation. Thus, we create a new model using a log transformed Income. We can see from Figure 6 that our residuals plots look much improved. **(9)** The residuals are still centered around 0, but are now scattered patternlessly and have constant variance. Looking at Figure 7, we can see a QQ plot shows that the normality assumption also appears to hold, though we have slightly lighter tails. Thus, our model assumptions appear to hold true.
+
+```{r results='hide'}
+model = lm(log(Income) ~ Gender + Age + factor(Ethnic) + factor(Health) + HeatBreaks
+           + MiceRats + CracksHoles + BrokenPlaster + WaterLeakage + MaintenanceDef
+           + Age:WaterLeakage,
+           data = data, x = T)
+summary(model)
+```
+
+**(8)** From our residuals plots, we can see that there appear to be a few outliers. However, running Cook's distance shows that these outliers have very little impact on the regression, with the largest percentile being 4.567159e-06. Thus, there is no reason for concern and we can ignore the outliers.
+
+```{r results='hide'}
+cookd = cooks.distance(model)
+sort(pf(cookd,6,91),decreasing=TRUE)[1:5]
+```
+
+
+```{r fig.width=8, fig.height=4, fig.cap="Diagnostic plots of residuals and squared residuals against the predictor for our final model"}
+res <- model$residuals
+fit <- model$fitted.values
+par(mfrow = c(1,2))
+plot(res~fit, pch = ".", xlab = "Fitted Values", ylab ="Residuals", main = "Residual Plot" )
+plot(res^2~fit, pch = ".", xlab = "Fitted Values", ylab ="Residuals", main = "Squared Residual Plot" )
+```
+
+```{r fig.width=8, fig.height=4, fig.cap="QQ plot of our final model"}
+r = scale(res)
+qqnorm(r)
+qqline(r)
+```
+
+# Model Inference and Results
+
+**(10)** For the first hypothesized relationship, the null hypothesis is that the coefficients for Ethnic are zero, and the alternative hypothesis is that it is nonzero. We use ANOVA to find the F statistic, which is 69.708, and get a p value of < 2.2e-16, which is less than 0.05, so we reject the null hypothesis that the coefficients for Ethnic are zero. In other words, there is sufficient evidence of a difference in Income between Ethnic groups.
+
+```{r results='hide'}
+ilm1 = lm(log(Income) ~ Gender + Age + factor(Health) + HeatBreaks
+           + MiceRats + CracksHoles + BrokenPlaster + WaterLeakage + MaintenanceDef
+           + Age:WaterLeakage,
+           data = data)
+anova(model, ilm1)
+```
+
+
+For the second hypothesized relationship, the null hypothesis is that the coefficient of the interaction between Age and WaterLeakage is zero, and the alternative hypothesis is that the coefficient is nonzero. We use ANOVA to find the F statistic, which is 4e-04, with a p value of 0.9842. Since 0.9842 is greater than 0.05, we fail to reject the null hypothesis that the coefficient is zero. In other words, there is insufficient evidence that the relationship between Age and Income is different depending on WaterLeakage, for households whose all other characteristics are the same.
+
+```{r results='hide'}
+ilm2 = lm(log(Income) ~ Gender + Age + factor(Ethnic) + factor(Health) + HeatBreaks
+           + MiceRats + CracksHoles + BrokenPlaster + WaterLeakage + MaintenanceDef,
+           data = data)
+anova(model, ilm2)
+```
+
+**(11)** Next we perform model selection to find the optimal model. The final model found includes Gender, Age, Ethnic, Health, HeatBreaks, and MiceRats, so it does include a different set of predictors than the original model.
+
+```{r results='hide',warning=FALSE,message=FALSE}
+library(bestglm)
+newframe = data.frame(cbind(model$x[,-1],log(data$Income)))
+bestmod = bestglm(newframe, IC="AIC")
+print(bestmod)
+extractAIC(bestmod$BestModel)
+```
+
+
+# Conclusion and Discussion
+
+**(12)** We found that there is a relationship between household income and self-reported race, but that the presence of water leakage did not affect the relationship between age and household income. We also found that the best model for household income included gender, age, self-reported race, health status, number of heat equipment breakages, and the presence of mice or rats. The relationship between income and race is likely due to the fact that race is known to affect one's education and chances of employment, while the lack of affect that water leakage had on the relationship between age and income is because age and water leakage are not strongly related.
+

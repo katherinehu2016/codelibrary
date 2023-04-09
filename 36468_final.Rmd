@@ -1,0 +1,189 @@
+---
+title: "Final Report"
+author: "Katherine Hu"
+documentclass: article
+output:
+  bookdown::pdf_document2:
+    toc: no
+---
+
+```{r, include=FALSE}
+###########################
+# STYLE EDITS: IGNORE THIS
+###########################
+
+# normally you'll want to include this with the libraries at the beginning of your document
+knitr::opts_chunk$set(message = FALSE) # include this if you don't want markdown to knit messages
+knitr::opts_chunk$set(warning = FALSE) # include this if you don't want markdown to knit warnings
+knitr::opts_chunk$set(echo = FALSE) # set echo = FALSE to hide code from html output
+```
+
+# Introduction
+
+Informal language refers to the type of language that is used in less formal settings, such as day-to-day conversation, which is not regulated in the same way that language is in more formal settings, such as academic writing. As such, it is marked by the use of slang terms, personal pronouns, and other linguistic phenomena that are either not permitted or seen less frequently in formal language.
+
+The TV Corpus and the Movies Corpus are large corpora taken from the subtitles of television and film meant to be used in order to study highly informal language. In fact, the language in these corpora are often more informal than that of spoken corpora. However, while the two corpora are both examples of informal language taken from subtitles, and film and television have numerous similarities as mediums, there are still differences between them, and thus there stands to reason that there are differences in the language used within the two.
+
+In addition to differences in the language utilized in the two corpora, there are likely also notable differences in the language utilized in informal language and more general language. Highly informal language will likely differ from general language usage, which can be used a baseline for determining the unique characteristics of informal language.
+
+This report aims to compare the types of informal language found in the TV Corpus and the Movies Corpus, in order to see what sorts of language are more common in each when compared to the other. It also aims to examine how the highly informal language found in the two corpora compare to general language.
+
+# Data
+
+This study is based on the TV Corpus and Movies Corpus. Both corpora were taken from subtitles for television and film from the OpenSubtitles collection. The TV Corpus contains 325 million words from 75,000 television episodes from the 1950s to 2017, while the Movies Corpus contains 200 million words from over 25,000 movies from the 1930s to 2018. Together, they form the largest available corpus of informal English. In addition, the country of origin for most of the movies and television shows in these corpora is the United States, so these corpora are specifically a sample of informal American English.
+
+In order to compare informal English to more general English, these two corpora will be compared to the COCA, a corpus of general American English. It contains over one billion words from a variety of sources, including spoken, fiction, popular magazines, newspapers, academic journals, blogs, web pages, and television and film.
+
+```{r}
+#Loading the packages
+library(cmu.textstat)
+library(tidyverse)
+library(quanteda)
+library(quanteda.textstats)
+library(ggraph)
+
+
+#Loading in the TV corpus and processing it into a data frame
+tv = as.data.frame(readLines("tv_text.txt"))
+tv$id = word(tv$`readLines("tv_text.txt")`, 1)
+tv$id = sub('@@', '', tv$id)
+tv$text = sub('@@\\w+\\s', '', tv$`readLines("tv_text.txt")`)
+tv$`readLines("tv_text.txt")` = NULL
+tv = tv[-1,]
+
+#Loading in the Movies corpus and processing it into a data frame
+movies = as.data.frame(readLines("movies_text.txt"))
+movies$id = word(movies$`readLines("movies_text.txt")`, 1)
+movies$id = sub('@@', '', movies$id)
+movies$text = sub('@@\\w+\\s', '', movies$`readLines("movies_text.txt")`)
+movies$`readLines("movies_text.txt")` = NULL
+movies = movies[-1,]
+
+#Create a dfm that combines the TV and Movies corpus
+tvmovies = rbind(tv, movies)
+tvmovies = tvmovies %>% mutate(text = preprocess_text(text)) %>% corpus()
+tvmovies_dfm <- tvmovies %>%
+  tokens(what="fastestword", remove_numbers=TRUE) %>%
+  tokens_compound(pattern = phrase(multiword_expressions)) %>%
+  dfm()
+
+#Preprocess and create a corpus from TV corpus data
+tv = tv %>% mutate(text = preprocess_text(text)) %>% corpus()
+tv_tokens <- tv %>%
+  tokens(what="fastestword", remove_numbers=TRUE)
+#Create a dfm
+tv_dfm <- tv %>%
+  tokens(what="fastestword", remove_numbers=TRUE) %>%
+  tokens_compound(pattern = phrase(multiword_expressions)) %>%
+  dfm()
+
+#Preprocess and create a corpus from Movies corpus data
+movies = movies %>% mutate(text = preprocess_text(text)) %>% corpus()
+movies_tokens <- movies %>%
+  tokens(what="fastestword", remove_numbers=TRUE)
+#Create a dfm
+movies_dfm <- movies %>%
+  tokens(what="fastestword", remove_numbers=TRUE) %>%
+  tokens_compound(pattern = phrase(multiword_expressions)) %>%
+  dfm()
+
+#Create a dfm from the COCA corpus
+coca_list <- list.files("coca-samples-text", full.names = T)
+coca_dfm <- coca_list %>%
+  readtext::readtext() %>%
+  corpus() %>%
+  tokens(what = "fastestword", remove_numbers=TRUE) %>%
+  tokens_compound(pattern = phrase(multiword_expressions)) %>%
+  dfm()
+```
+
+
+# Methods
+
+This study uses key word analysis in order to explore linguistic variation between corpora. Key word analysis determines what words are used with much higher frequency in the text when compared to a reference. The TV Corpus and Movies Corpus will each be compared to the other as a reference, in order to determine the differences between them, and then the two corpora will be compared with the COCA corpus as a reference to see how informal English compares to general English.
+
+Once key words are identified, collocation will be used to identify patterns within the use of key words that are of particular interest.
+
+# Results
+
+First, in the table below, the Movies corpus is used as a reference to examine keywords in the TV corpus:
+
+```{r}
+inf_kw <- keyness_table(tv_dfm, movies_dfm)
+kableExtra::kbl(head(inf_kw),
+                caption = "Tokens with the highest keyness values in the tv corpus when compared to the movies corpus",
+                booktabs = T, linesep = "", digits = 2) %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+```
+From the table above, it is pretty notable that certain names seem much more common in TV than in film. Michael, Adrian, and Tim are all names that show up in the table, and they have the second, third, and fourth largest effect sizes in the list. Michael is a very common name, but Adrian and Tim, while not uncommon, are not particularly common either. This seems to suggest that more characters in TV may have these three names.
+
+Next, the TV corpus is used as a reference to examine the Movies corpus:
+```{r}
+inf_kw <- keyness_table(movies_dfm, tv_dfm)
+kableExtra::kbl(head(inf_kw),
+                caption = "Tokens with the highest keyness values in the movies corpus when compared to the tv corpus",
+                booktabs = T, linesep = "", digits = 2) %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+```
+From the table, it is immediately noticeable that the top keywords for both keyness and effect size are all profanities, meaning that profanity is much more common in film than television. This makes sense, since television is much more strictly regulated for child-appropriateness and profanity is generally censored if it occurs, which means that profanity would not tend to appear in television subtitles. Adult films, on the other hand, are much freer to use profanity.
+
+The use of profanity can further be examined by building a collocation network. The words "fuck", "fuckin", "fucking", and "shit", which are the four taboo words with high keyness values in the movies corpus when compared to the tv corpus, will be plotted in this network to see how they relate to one another:
+
+```{r fig.height = 10, fig.width = 10}
+#Create collocations
+fuck_collocations <- collocates_by_MI(movies_tokens, "fuck")
+fuckc <- fuck_collocations %>% filter(col_freq >= 5 & MI_1 >= 5)
+
+fucking_collocations <- collocates_by_MI(movies_tokens, "fucking")
+fuckingc <- fucking_collocations %>% filter(col_freq >= 5 & MI_1 >= 5)
+
+fuckin_collocations <- collocates_by_MI(movies_tokens, "fuckin")
+fuckinc <- fuckin_collocations %>% filter(col_freq >= 5 & MI_1 >= 5)
+
+shit_collocations <- collocates_by_MI(movies_tokens, "shit")
+shitc <- shit_collocations %>% filter(col_freq >= 5 & MI_1 >= 5)
+
+#Plot the collocations
+net <- col_network(fuckc, fuckingc, fuckinc, shitc)
+ggraph(net, weight = link_weight, layout = "stress") + 
+  geom_edge_link(color = "gray80", alpha = .75) + 
+  geom_node_point(aes(alpha = node_weight, size = 3, color = n_intersects)) +
+  geom_node_text(aes(label = label), repel = T, size = 3) +
+  scale_alpha(range = c(0.2, 0.9)) +
+  theme_graph() +
+  theme(legend.position="none")
+```
+
+From this network, it is clear that the four words all tend to have other taboo words as collocates. Collocates such as "bitch", "motherfucker", "goddamn", and "shit" are all taboo words that at least two of the four word have in common as collocates. Each of the four words also has names, such as "billy", "john", and "kayla", as collocates, which indicates that taboo words are often used in conjunction with a person's name. All four taboo words also have collocates that are not taboo words but are indicative of dangerous situations (such as "blood", "guts", and "dead"), or are adjectives with a somewhat negative implication (such as "weird" and "scaredy").
+
+From these patterns, we can see that taboo words tend to be used together. In addition, profanity is also generally used to insult people, and thus there are both names and negative adjectives as collocates. However, taboo words are also often used in dangerous situations, especially those that involve violence.
+
+Now, we can examine the TV and Movies corpus when compared to the COCA to compare informal and general English:
+
+```{r}
+inf_kw <- keyness_table(tvmovies_dfm, coca_dfm)
+kableExtra::kbl(head(inf_kw, 20), caption = "Tokens with the highest keyness values in the tv and movies corpus when compared to the COCA", booktabs = T, linesep = "", digits = 2) %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+```
+
+From this list, it is clear that informal English uses more pronouns than general English, especially personal pronouns, with "you", "i", "we", and "me" all appearing in the list. Words used in interjections, such as "oh", "yeah", and "no", are also more common in informal English, as are contractions, as evidenced by the appearance of "n't", "re", "ll", and "m" in the list.
+
+
+# Discussion
+
+Though the TV and Movies Corpus are both collections of informal language, there are some differences in the two. The TV Corpus seems to have more of certain names (Michael, Adrian, and Tim), while due to stricter television broadcasting standards, the Movies Corpus contains more profanity, which is permitted in films provided that they have an adult rating. The words "fuck", "fuckin", "fucking", and "shit" are all more common in the Movies Corpus.
+
+The higher levels of profanity in the Movies Corpus is of special interest, as these taboo words are an indicator of informal language. Examining collocates of the four identified words reveals that profanity is often used with other taboo words, often with insulting words and in dangerous situations. Thus, we can conclude that taboo words are often used together and/or used to insult people or react to extreme circumstances. However, it is important to note that the situations in which taboo words are used in films are not necessarily common in daily life, as action movies, for example, will have a lot more situations involving danger and violence. Thus, while the usage of taboo words examined was enlightening, real life usage of taboo words probably differs slightly. In order to examine this further, usage of taboo words in normal daily life would have to be examined and compared to see if there is a difference.
+
+Comparing the TV and Movies Corpus to the COCA revealed several distinguishing features of informal English when compared to general English. Informal English tends to have higher levels of pronouns (and personal pronouns in particular), as well as more interjections and contractions. Overall, given the described features of informal language when compared to formal language, this would make sense.
+
+\pagebreak
+
+# Code Appendix
+
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
