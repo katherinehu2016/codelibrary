@@ -1,7 +1,6 @@
 ---
-title: "36-401 DA Exam 1"
-author: "Katherine Hu (khu2)"
-date: "October 14, 2022"
+title: "Relationship Between Flight Departure Delay and Arrival Delay"
+author: "Katherine Hu"
 output: pdf_document
 linestretch: 1.241
 fontsize: 12pt

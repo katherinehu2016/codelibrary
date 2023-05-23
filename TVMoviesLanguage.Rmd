@@ -1,5 +1,5 @@
 ---
-title: "Final Report"
+title: "The Language of TV and Movies vs General Informal English"
 author: "Katherine Hu"
 documentclass: article
 output:
